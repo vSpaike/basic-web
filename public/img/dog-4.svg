@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="500" viewBox="0 0 800 500">
+    <defs>
+        <linearGradient id="bg4" x1="0" y1="1" x2="1" y2="0">
+            <stop offset="0%" stop-color="#cffafe"/>
+            <stop offset="100%" stop-color="#fef3c7"/>
+        </linearGradient>
+    </defs>
+    <rect width="800" height="500" rx="28" fill="url(#bg4)"/>
+    <ellipse cx="400" cy="270" rx="170" ry="120" fill="#eab784"/>
+    <circle cx="320" cy="240" r="18" fill="#0f172a"/>
+    <circle cx="480" cy="240" r="18" fill="#0f172a"/>
+    <ellipse cx="400" cy="290" rx="28" ry="20" fill="#0f172a"/>
+    <path d="M360 320 Q400 340 440 320" stroke="#0f172a" stroke-width="8" fill="none" stroke-linecap="round"/>
+    <path d="M260 210 Q240 150 300 150" stroke="#eab784" stroke-width="26" fill="none" stroke-linecap="round"/>
+    <path d="M540 210 Q560 150 500 150" stroke="#eab784" stroke-width="26" fill="none" stroke-linecap="round"/>
+    <text x="40" y="460" font-family="Segoe UI, sans-serif" font-size="36" fill="#0f172a">Chien curieux</text>
+</svg>

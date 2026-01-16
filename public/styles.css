@@ -1,12 +1,12 @@
 :root {
-  --bg: #0f172a;
-  --surface: #111827;
-  --card: #1f2937;
-  --text: #e5e7eb;
-  --muted: #9ca3af;
-  --accent: #38bdf8;
+  --bg: #f8fafc;
+  --surface: #ffffff;
+  --card: #ffffff;
+  --text: #0f172a;
+  --muted: #64748b;
+  --accent: #2563eb;
   --accent-2: #22c55e;
-  --danger: #f87171;
+  --danger: #ef4444;
 }
 
 * {
@@ -17,7 +17,7 @@ body {
   margin: 0;
   padding: 24px;
   font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
-  background: linear-gradient(135deg, #0f172a 0%, #111827 100%);
+  background: var(--bg);
   color: var(--text);
   min-height: 100vh;
 }
@@ -42,13 +42,14 @@ nav a {
   padding: 8px 14px;
   border-radius: 999px;
   transition: all 0.2s ease;
-  border: 1px solid #2b3647;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.06);
 }
 
 nav a:hover {
-  color: #fff;
+  color: #0f172a;
   border-color: var(--accent);
-  box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.25);
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.25);
 }
 
 h1, h2 {
@@ -59,8 +60,9 @@ form {
   background: var(--card);
   padding: 20px;
   border-radius: 12px;
-  border: 1px solid #2b3647;
+  border: 1px solid #e2e8f0;
   max-width: 520px;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
 }
 
 label {
@@ -74,8 +76,8 @@ input[type="email"] {
   padding: 10px 12px;
   margin-top: 6px;
   border-radius: 8px;
-  border: 1px solid #334155;
-  background: #0b1220;
+  border: 1px solid #cbd5f5;
+  background: #ffffff;
   color: var(--text);
 }
 
@@ -83,7 +85,7 @@ input[type="submit"],
 button {
   margin-top: 8px;
   background: var(--accent);
-  color: #0b1220;
+  color: #ffffff;
   border: none;
   padding: 10px 14px;
   border-radius: 8px;
@@ -109,8 +111,9 @@ ul#objets-list li {
 img {
   max-width: 100%;
   border-radius: 12px;
-  border: 1px solid #2b3647;
+  border: 1px solid #e2e8f0;
   margin-top: 16px;
+  background: #ffffff;
 }
 
 #login-container {
