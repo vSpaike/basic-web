@@ -23,12 +23,34 @@
         <input type="submit" value="Ajouter">
     </form>
 
-    <img src="img/dog-3.svg" alt="Chien joueur">
-
     <h2>Objets disponibles</h2>
     <ul id="objets-list"></ul>
 
     <script>
+        async function supprimerObjet(objet, prix) {
+            if (!confirm('Êtes-vous sûr de vouloir supprimer ce produit ?')) {
+                return; 
+            }
+            try {
+                const response = await fetch('/delete_objet', {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ objet, prix })
+                });
+                console.log(JSON.stringify({ objet, prix }))
+                
+                if (!response.ok) {
+                    throw new Error('Erreur lors de la suppression');
+                }
+                chargerObjets();
+            } catch (err) {
+                alert('Erreur : ' + err.message);
+                console.error(err);
+            }
+        }
+
         async function chargerObjets() {
             try {
                 const response = await fetch('/objets');
@@ -40,9 +62,16 @@
                 list.innerHTML = '';
                 objets.forEach((obj) => {
                     const li = document.createElement('li');
-                    const nom = obj.objet || obj.nom || 'Sans nom';
+                    const objet = obj.objet || obj.nom || 'Sans nom';
                     const prix = obj.prix ?? obj.price ?? 'N/A';
-                    li.textContent = `${nom} — ${prix}`;
+                    li.textContent = `${objet} — ${prix}`;
+                    
+                    const deleteBtn = document.createElement('button');
+                    deleteBtn.textContent = 'Supprimer';
+                    deleteBtn.style.marginLeft = '10px';
+                    deleteBtn.onclick = () => supprimerObjet(objet, prix);
+                    
+                    li.appendChild(deleteBtn);
                     list.appendChild(li);
                 });
             } catch (err) {

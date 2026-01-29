@@ -54,6 +54,11 @@ function startServer() {
     });
 }
 
+function verifyLetter(input) {
+    const regexLettres = /^[A-Za-zÀ-ÖØ-öø-ÿ\s'-]+$/;
+    return regexLettres.test(input);
+}
+
 // Begin connection attempts
 connectWithRetry();
 
@@ -76,6 +81,14 @@ app.post('/register', function (req, res) {
     const password = req.body.password;
     const email = req.body.email;
 
+    if (!nom || !prenom || !email || !password) {
+        return res.status(400).send('Missing required fields');
+    }
+
+    if(!verifyLetter(nom) || !verifyLetter(prenom)) {
+        return res.status(400).send('Name contains invalid characters');
+    }
+    
     const sql = 'INSERT INTO clients (nom, prenom, email, password) VALUES (?, ?, ?, ?)';
     db.query(sql, [nom, prenom, email, password], function (err, result) {
         if (err) {
@@ -89,6 +102,14 @@ app.post('/register', function (req, res) {
 app.post('/login', function (req, res) {
     const email = req.body.email || req.body.username;
     const password = req.body.password;
+
+    if (!email || !password) {
+        return res.status(400).send('Missing email or password');
+    }
+
+    if(!verifyLetter(password)) {
+        return res.status(400).send('Password contains invalid characters');
+    }
 
     const sql = 'SELECT * FROM clients WHERE email = ? AND password = ?';
     db.query(sql, [email, password], function (err, result) {
@@ -111,6 +132,19 @@ app.post('/objet', function (req, res) {
     if (!objet || !prix) {
         return res.status(400).send('Missing objet or prix');
     }
+    
+    if(isNaN(prix)) {
+        return res.status(400).send('Prix must be a number');
+    }
+
+    if(!verifyLetter(objet)) {
+        return res.status(400).send('Objet contains invalid characters');
+    }
+
+    const regexPrix = /^\d+(\.\d{1,2})?$/;
+    if(!regexPrix.test(prix)) {
+        return res.status(400).send('Prix format is invalid');
+    }
 
     const sql = 'INSERT INTO objets (objet, prix) VALUES (?, ?)';
     db.query(sql, [objet, prix], function (err, result) {
@@ -130,6 +164,23 @@ app.get('/objets', function (req, res) {
             return res.status(500).json({ error: 'Erreur serveur' });
         }
         res.json(results);
+    });
+});
+
+app.delete('/delete_objet', function (req, res) {
+    const objet = req.body.objet;
+    const prix = req.body.prix;
+    if (!objet || prix === undefined) {
+        return res.status(400).send('Missing objet or prix');
+    }
+    const sql = 'DELETE FROM objets WHERE objet = ? AND prix = ?';
+    console.log(`Deleting objet: ${objet} with prix: ${prix}`);
+    db.query(sql, [objet, prix], function (err, result) {
+        if (err) {
+            console.error(err);
+            return res.status(500).send('Erreur serveur');
+        }
+        return res.status(204).send();
     });
 });
 
