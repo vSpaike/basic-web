@@ -86,8 +86,12 @@ app.post('/register', function (req, res) {
         return res.status(400).send('Missing required fields');
     }
 
-    if(!verifyLetter(nom) || !verifyLetter(prenom)) {
-        return res.status(400).send('Name contains invalid characters');
+    if(!verifyLetter(nom)) {
+        return res.status(400).send('Nom (lastname) contains invalid characters. Only letters, spaces, apostrophes and hyphens are allowed.');
+    }
+    
+    if(!verifyLetter(prenom)) {
+        return res.status(400).send('Prénom (firstname) contains invalid characters. Only letters, spaces, apostrophes and hyphens are allowed.');
     }
     
     const sql = 'INSERT INTO clients (nom, prenom, email, password) VALUES (?, ?, ?, ?)';
