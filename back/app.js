@@ -25,7 +25,7 @@ const dbConfig = {
 let db;
 
 // Try to connect with retries (useful because DB container may not be ready yet)
-function connectWithRetry(attemptsLeft = 10, delayMs = 2000) {
+function connectWithRetry(attemptsLeft = 20, delayMs = 2000) {
     const conn = mysql.createConnection(dbConfig);
     conn.connect(function (err) {
         if (err) {
@@ -59,10 +59,6 @@ function verifyLetter(input) {
     return regexLettres.test(input);
 }
 
-function verifyLetterPassword(input) {
-    const regexLettres = /^[A-Za-zÀ-ÖØ-öø-ÿ0-9\s!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]+$/;
-    return regexLettres.test(input);
-}
 
 // Begin connection attempts
 connectWithRetry();
@@ -110,10 +106,6 @@ app.post('/login', function (req, res) {
 
     if (!email || !password) {
         return res.status(400).send('Missing email or password');
-    }
-
-    if(!verifyLetterPassword(password)) {
-        return res.status(400).send('Password contains invalid characters');
     }
 
     const sql = 'SELECT * FROM clients WHERE email = ? AND password = ?';
