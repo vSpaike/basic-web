@@ -3,30 +3,161 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Accueil</title>
+    <title>Mon Profil</title>
     <link rel="stylesheet" href="styles.css">
+    <style>
+        .profile-container {
+            max-width: 600px;
+            margin: 30px auto;
+            padding: 20px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .profile-image-container {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .profile-image {
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 3px solid #4CAF50;
+            margin-bottom: 15px;
+        }
+        .profile-image-placeholder {
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            background: #ddd;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 60px;
+            color: #666;
+            border: 3px solid #4CAF50;
+            margin-bottom: 15px;
+        }
+        .upload-btn-wrapper {
+            position: relative;
+            display: inline-block;
+            margin-top: 10px;
+        }
+        .btn-upload {
+            background-color: #4CAF50;
+            color: white;
+            padding: 8px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            border: none;
+        }
+        .upload-btn-wrapper input[type=file] {
+            font-size: 100px;
+            position: absolute;
+            left: 0;
+            top: 0;
+            opacity: 0;
+            cursor: pointer;
+        }
+        .logout-btn {
+            background-color: #f44336;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+            margin-top: 20px;
+        }
+        .logout-btn:hover {
+            background-color: #da190b;
+        }
+    </style>
 </head>
-    <body>
-        <ul>
-            <li><a href="accueil.html">Acceuil</a></li>
+<body>
+    <nav>
+        <ul class="nav-links">
+            <li><a href="accueil.html">Accueil</a></li>
             <li><a href="prix.html">Prix</a></li>
+            <li><a href="profil">Profil</a></li>
         </ul>
-        <img src="img/dog-4.svg" alt="Chien curieux">
+    </nav>
+    <img src="img/dog-4.svg" alt="Chien curieux">
+    
+    <div class="profile-container">
+        <h1>Mon Profil</h1>
+        
+        <!-- Profile Image Section -->
+        <div class="profile-image-container">
+            <div id="imagePreview"></div>
+            <form id="imageForm" method="POST" action="/upload-profile-image" enctype="multipart/form-data">
+                <div class="upload-btn-wrapper">
+                    <button class="btn-upload" type="button" onclick="document.getElementById('fileInput').click()">
+                        Changer la photo
+                    </button>
+                    <input type="file" id="fileInput" name="profile_image" accept="image/*" onchange="uploadImage()">
+                </div>
+            </form>
+        </div>
+
+        <!-- Profile Info Form -->
         <form method="POST" action="/update">
-        <h1>Mettre à jour les informations</h1>
-        <label for="name">Nom</label> <br>
-        <input type="text" name="nom" id="nom" required>
-        <br><br>
-        <label for="password">Prenom</label> <br>
-        <input type="text" name="prenom" id="prenom">
-        <br><br>
-        <label for="password">Email</label> <br>
-        <input type="text" name="email" id="email">
-        <br><br>
-        <label for="password">Mot de passe</label> <br>
-        <input type="password" name="password" id="password">
-        <br><br>
-        <input type="submit" value="Mettre à jour">
-      </form>
-    </body>
+            <h2>Informations personnelles</h2>
+            
+            <label for="nom">Nom</label><br>
+            <input type="text" name="nom" id="nom" required><br><br>
+            
+            <label for="prenom">Prénom</label><br>
+            <input type="text" name="prenom" id="prenom" required><br><br>
+            
+            <label for="email">Email (non modifiable)</label><br>
+            <input type="email" id="email" disabled><br><br>
+            
+            <input type="submit" value="Mettre à jour">
+        </form>
+
+        <div style="text-align: center;">
+            <a href="/logout" class="logout-btn">Se déconnecter</a>
+        </div>
+    </div>
+
+    <script>
+        // Load user profile data
+        window.addEventListener('DOMContentLoaded', function() {
+            fetch('/get-profile')
+                .then(response => {
+                    if (!response.ok) {
+                        window.location.href = '/login';
+                        throw new Error('Not logged in');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    document.getElementById('nom').value = data.nom || '';
+                    document.getElementById('prenom').value = data.prenom || '';
+                    document.getElementById('email').value = data.email || '';
+                    
+                    // Display profile image or placeholder
+                    const imagePreview = document.getElementById('imagePreview');
+                    if (data.profile_image) {
+                        imagePreview.innerHTML = '<img src="' + data.profile_image + '" class="profile-image" alt="Photo de profil">';
+                    } else {
+                        const initials = (data.prenom ? data.prenom[0] : '') + (data.nom ? data.nom[0] : '');
+                        imagePreview.innerHTML = '<div class="profile-image-placeholder">' + initials.toUpperCase() + '</div>';
+                    }
+                })
+                .catch(error => console.error('Error loading profile:', error));
+        });
+
+        // Auto-submit form when image is selected
+        function uploadImage() {
+            const fileInput = document.getElementById('fileInput');
+            if (fileInput.files.length > 0) {
+                document.getElementById('imageForm').submit();
+            }
+        }
+    </script>
+</body>
 </html>

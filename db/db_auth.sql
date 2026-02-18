@@ -5,6 +5,7 @@ CREATE TABLE IF NOT EXISTS `clients` (
   `prenom` VARCHAR(64) NOT NULL,
   `email` VARCHAR(256) NOT NULL,
   `password` VARCHAR(128) NOT NULL,
+  `profile_image` VARCHAR(512) DEFAULT NULL,
   PRIMARY KEY (`email`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 

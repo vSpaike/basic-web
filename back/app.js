@@ -2,16 +2,58 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const mysql = require('mysql2');
 const path = require('path');
+const session = require('express-session');
+const multer = require('multer');
+const fs = require('fs');
 
 const app = express();
 const port = process.env.PORT || 5000;
 
 // public directory is at the project root (sibling of back)
 const publicPath = path.join(__dirname, '..', 'public');
+const uploadsPath = path.join(__dirname, '..', 'uploads');
+
+// Create uploads directory if it doesn't exist
+if (!fs.existsSync(uploadsPath)) {
+    fs.mkdirSync(uploadsPath, { recursive: true });
+}
+
+// Configure multer for file uploads
+const storage = multer.diskStorage({
+    destination: function (req, file, cb) {
+        cb(null, uploadsPath);
+    },
+    filename: function (req, file, cb) {
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        cb(null, 'profile-' + uniqueSuffix + path.extname(file.originalname));
+    }
+});
+
+const upload = multer({ 
+    storage: storage,
+    limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+    fileFilter: function (req, file, cb) {
+        const allowedTypes = /jpeg|jpg|png|gif/;
+        const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+        const mimetype = allowedTypes.test(file.mimetype);
+        if (extname && mimetype) {
+            cb(null, true);
+        } else {
+            cb(new Error('Only image files are allowed'));
+        }
+    }
+});
 
 app.use(express.static(publicPath));
+app.use('/uploads', express.static(uploadsPath));
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
+app.use(session({
+    secret: 'your-secret-key-change-in-production',
+    resave: false,
+    saveUninitialized: false,
+    cookie: { secure: false, maxAge: 24 * 60 * 60 * 1000 } // 24 hours
+}));
 
 // DB config from env with sensible defaults for local dev
 const dbConfig = {
@@ -119,10 +161,111 @@ app.post('/login', function (req, res) {
             return res.status(500).send('Erreur serveur');
         }
         if (result.length > 0) {
+            // Create session
+            req.session.user = {
+                email: result[0].email,
+                nom: result[0].nom,
+                prenom: result[0].prenom,
+                profile_image: result[0].profile_image
+            };
             res.sendFile(path.join(publicPath, 'accueil.html'));
         } else {
             res.status(401).send('Invalid username or password');
         }
+    });
+});
+
+// Middleware to check if user is logged in
+function requireLogin(req, res, next) {
+    if (req.session && req.session.user) {
+        next();
+    } else {
+        res.status(401).send('You must be logged in to access this page');
+    }
+}
+
+// Profile page
+app.get('/profil', requireLogin, function (req, res) {
+    res.sendFile(path.join(publicPath, 'profil.html'));
+});
+
+// Get current user profile
+app.get('/get-profile', requireLogin, function (req, res) {
+    res.json(req.session.user);
+});
+
+// Update profile
+app.post('/update', requireLogin, function (req, res) {
+    const nom = req.body.nom;
+    const prenom = req.body.prenom;
+    const email = req.session.user.email; // Use session email, don't allow changing it
+
+    if (!nom || !prenom) {
+        return res.status(400).send('Missing required fields');
+    }
+
+    if(!verifyLetter(nom)) {
+        return res.status(400).send('Nom (lastname) contains invalid characters. Only letters, spaces, apostrophes and hyphens are allowed.');
+    }
+    
+    if(!verifyLetter(prenom)) {
+        return res.status(400).send('Prénom (firstname) contains invalid characters. Only letters, spaces, apostrophes and hyphens are allowed.');
+    }
+
+    const sql = 'UPDATE clients SET nom = ?, prenom = ? WHERE email = ?';
+    db.query(sql, [nom, prenom, email], function (err, result) {
+        if (err) {
+            console.error(err);
+            return res.status(500).send('Erreur serveur');
+        }
+        // Update session
+        req.session.user.nom = nom;
+        req.session.user.prenom = prenom;
+        res.redirect('/profil');
+    });
+});
+
+// Upload profile image
+app.post('/upload-profile-image', requireLogin, upload.single('profile_image'), function (req, res) {
+    if (!req.file) {
+        return res.status(400).send('No file uploaded');
+    }
+
+    const imageUrl = '/uploads/' + req.file.filename;
+    const email = req.session.user.email;
+
+    // Delete old profile image if it exists
+    if (req.session.user.profile_image) {
+        const oldImagePath = path.join(__dirname, '..', req.session.user.profile_image);
+        if (fs.existsSync(oldImagePath)) {
+            try {
+                fs.unlinkSync(oldImagePath);
+            } catch (err) {
+                console.error('Error deleting old image:', err);
+            }
+        }
+    }
+
+    const sql = 'UPDATE clients SET profile_image = ? WHERE email = ?';
+    db.query(sql, [imageUrl, email], function (err, result) {
+        if (err) {
+            console.error(err);
+            return res.status(500).send('Erreur serveur');
+        }
+        // Update session
+        req.session.user.profile_image = imageUrl;
+        res.redirect('/profil');
+    });
+});
+
+// Logout
+app.get('/logout', function (req, res) {
+    req.session.destroy(function(err) {
+        if (err) {
+            console.error(err);
+            return res.status(500).send('Erreur lors de la déconnexion');
+        }
+        res.redirect('/login');
     });
 });
 
@@ -153,7 +296,7 @@ app.post('/objet', function (req, res) {
             console.error(err);
             return res.status(500).send('Erreur serveur');
         }
-        res.send('Objet ajouté avec succès');
+        res.redirect('/prix.html');
     });
 });
 
