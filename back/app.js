@@ -59,6 +59,11 @@ function verifyLetter(input) {
     return regexLettres.test(input);
 }
 
+function verifyLetterPassword(input) {
+    const regexLettres = /^[A-Za-zÀ-ÖØ-öø-ÿ0-9\s!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]+$/;
+    return regexLettres.test(input);
+}
+
 // Begin connection attempts
 connectWithRetry();
 
@@ -107,7 +112,7 @@ app.post('/login', function (req, res) {
         return res.status(400).send('Missing email or password');
     }
 
-    if(!verifyLetter(password)) {
+    if(!verifyLetterPassword(password)) {
         return res.status(400).send('Password contains invalid characters');
     }
 

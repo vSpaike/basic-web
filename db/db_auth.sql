@@ -17,6 +17,6 @@ CREATE TABLE IF NOT EXISTS `objets` (
 -- Example data
 INSERT INTO `objets` (`objet`, `prix`) VALUES ('apple', 10.00);
 
---Insert User
-INSERT INTO `clients` (`nom`,`prenom`,`email`,`password`) VALUES ('user','un','`user1@demo.fr','user1');
-INSERT INTO `clients` (`nom`,`prenom`,`email`,`password`) VALUES ('user','deux','`user2@demo.fr','user2');
+-- Insert User
+INSERT INTO `clients` (`nom`,`prenom`,`email`,`password`) VALUES ('user','un','user1@demo.fr','user1');
+INSERT INTO `clients` (`nom`,`prenom`,`email`,`password`) VALUES ('user','deux','user2@demo.fr','user2');
