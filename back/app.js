@@ -258,6 +258,17 @@ app.post('/upload-profile-image', requireLogin, upload.single('profile_image'), 
     });
 });
 
+// Download PDF
+app.get('/download-pdf', requireLogin, function (req, res) {
+    const pdfPath = path.join(__dirname, '..', 'pdf', 'install_windows.pdf');
+    res.download(pdfPath, 'install_windows.pdf', function (err) {
+        if (err) {
+            console.error('Error downloading PDF:', err);
+            res.status(500).send('Erreur lors du téléchargement du fichier');
+        }
+    });
+});
+
 // Logout
 app.get('/logout', function (req, res) {
     req.session.destroy(function(err) {
@@ -325,6 +336,350 @@ app.delete('/delete_objet', function (req, res) {
             return res.status(500).send('Erreur serveur');
         }
         return res.status(204).send();
+    });
+});
+
+// ===== GROUP ROUTES =====
+
+// Serve groupe page
+app.get('/groupe', requireLogin, function (req, res) {
+    res.sendFile(path.join(publicPath, 'groupe.html'));
+});
+
+// Get all groups for current user
+app.get('/get-groups', requireLogin, function (req, res) {
+    const email = req.session.user.email;
+    const sql = `
+        SELECT DISTINCT g.groupe_id, g.nom_groupe, g.createur_email, 
+               g.date_creation,
+               (SELECT COUNT(*) FROM members_groups WHERE groupe_id = g.groupe_id) as nb_membres,
+               (CASE WHEN g.createur_email = ? THEN 'creator' 
+                     WHEN EXISTS(SELECT 1 FROM members_groups WHERE groupe_id = g.groupe_id AND email = ?) THEN 'member'
+                     ELSE 'non_member' END) as user_role
+        FROM groupes g
+        ORDER BY g.date_creation DESC
+    `;
+    db.query(sql, [email, email], function (err, results) {
+        if (err) {
+            console.error(err);
+            return res.status(500).json({ error: 'Erreur serveur' });
+        }
+        res.json(results || []);
+    });
+});
+
+// Create a new group
+app.post('/create-group', requireLogin, function (req, res) {
+    const nom_groupe = req.body.nom_groupe;
+    const email = req.session.user.email;
+
+    if (!nom_groupe || nom_groupe.trim() === '') {
+        return res.status(400).send('Nom du groupe requis');
+    }
+
+    const sql = 'INSERT INTO groupes (nom_groupe, createur_email) VALUES (?, ?)';
+    db.query(sql, [nom_groupe, email], function (err, result) {
+        if (err) {
+            if (err.code === 'ER_DUP_ENTRY') {
+                return res.status(400).send('Ce nom de groupe existe déjà');
+            }
+            console.error(err);
+            return res.status(500).send('Erreur serveur');
+        }
+        
+        // Add creator to group
+        const groupe_id = result.insertId;
+        const addMemberSql = 'INSERT INTO members_groups (groupe_id, email) VALUES (?, ?)';
+        db.query(addMemberSql, [groupe_id, email], function (err) {
+            if (err) {
+                console.error(err);
+                return res.status(500).send('Erreur serveur');
+            }
+            res.json({ success: true, groupe_id: groupe_id });
+        });
+    });
+});
+
+// Get group details
+app.get('/get-group/:groupe_id', requireLogin, function (req, res) {
+    const groupe_id = req.params.groupe_id;
+    const email = req.session.user.email;
+
+    // Check if user is member of group
+    const checkMemberSql = `
+        SELECT * FROM groupes g
+        LEFT JOIN members_groups mg ON g.groupe_id = mg.groupe_id
+        WHERE g.groupe_id = ? AND (g.createur_email = ? OR mg.email = ?)
+    `;
+    db.query(checkMemberSql, [groupe_id, email, email], function (err, result) {
+        if (err) {
+            console.error(err);
+            return res.status(500).json({ error: 'Erreur serveur' });
+        }
+        if (result.length === 0) {
+            return res.status(403).json({ error: 'Accès non autorisé' });
+        }
+
+        // Get all members
+        const membersSql = `
+            SELECT c.email, c.prenom, c.nom FROM members_groups mg
+            JOIN clients c ON mg.email = c.email
+            WHERE mg.groupe_id = ?
+        `;
+        db.query(membersSql, [groupe_id], function (err, members) {
+            if (err) {
+                console.error(err);
+                return res.status(500).json({ error: 'Erreur serveur' });
+            }
+
+            // Get panier items
+            const panierSql = 'SELECT * FROM panier_groupe WHERE groupe_id = ?';
+            db.query(panierSql, [groupe_id], function (err, panier) {
+                if (err) {
+                    console.error(err);
+                    return res.status(500).json({ error: 'Erreur serveur' });
+                }
+
+                const groupe = result[0];
+                res.json({
+                    groupe_id: groupe.groupe_id,
+                    nom_groupe: groupe.nom_groupe,
+                    createur_email: groupe.createur_email,
+                    is_creator: groupe.createur_email === email,
+                    members: members,
+                    panier: panier || []
+                });
+            });
+        });
+    });
+});
+
+// Add member to group
+app.post('/add-member-to-group', requireLogin, function (req, res) {
+    const groupe_id = req.body.groupe_id;
+    const new_email = req.body.email;
+    const email = req.session.user.email;
+
+    // Check if user is creator of group
+    const checkCreatorSql = 'SELECT createur_email FROM groupes WHERE groupe_id = ?';
+    db.query(checkCreatorSql, [groupe_id], function (err, result) {
+        if (err) {
+            console.error(err);
+            return res.status(500).send('Erreur serveur');
+        }
+        if (result.length === 0 || result[0].createur_email !== email) {
+            return res.status(403).send('Seul le créateur peut ajouter des membres');
+        }
+
+        // Check if user exists
+        const checkUserSql = 'SELECT email FROM clients WHERE email = ?';
+        db.query(checkUserSql, [new_email], function (err, userResult) {
+            if (err) {
+                console.error(err);
+                return res.status(500).send('Erreur serveur');
+            }
+            if (userResult.length === 0) {
+                return res.status(404).send('Utilisateur non trouvé');
+            }
+
+            // Add member to group
+            const addMemberSql = 'INSERT INTO members_groups (groupe_id, email) VALUES (?, ?)';
+            db.query(addMemberSql, [groupe_id, new_email], function (err) {
+                if (err) {
+                    if (err.code === 'ER_DUP_ENTRY') {
+                        return res.status(400).send('Cet utilisateur est déjà dans le groupe');
+                    }
+                    console.error(err);
+                    return res.status(500).send('Erreur serveur');
+                }
+                res.json({ success: true });
+            });
+        });
+    });
+});
+
+// Remove member from group
+app.post('/remove-member-from-group', requireLogin, function (req, res) {
+    const groupe_id = req.body.groupe_id;
+    const member_email = req.body.email;
+    const email = req.session.user.email;
+
+    // Check if user is creator of group
+    const checkCreatorSql = 'SELECT createur_email FROM groupes WHERE groupe_id = ?';
+    db.query(checkCreatorSql, [groupe_id], function (err, result) {
+        if (err) {
+            console.error(err);
+            return res.status(500).send('Erreur serveur');
+        }
+        if (result.length === 0 || result[0].createur_email !== email) {
+            return res.status(403).send('Seul le créateur peut retirer des membres');
+        }
+
+        // Remove member
+        const removeMemberSql = 'DELETE FROM members_groups WHERE groupe_id = ? AND email = ?';
+        db.query(removeMemberSql, [groupe_id, member_email], function (err) {
+            if (err) {
+                console.error(err);
+                return res.status(500).send('Erreur serveur');
+            }
+            res.json({ success: true });
+        });
+    });
+});
+
+// Get panier for group
+app.get('/get-panier/:groupe_id', requireLogin, function (req, res) {
+    const groupe_id = req.params.groupe_id;
+    const email = req.session.user.email;
+
+    // Check if user is member of group
+    const checkMemberSql = `
+        SELECT * FROM groupes g
+        LEFT JOIN members_groups mg ON g.groupe_id = mg.groupe_id
+        WHERE g.groupe_id = ? AND (g.createur_email = ? OR mg.email = ?)
+    `;
+    db.query(checkMemberSql, [groupe_id, email, email], function (err, result) {
+        if (err) {
+            console.error(err);
+            return res.status(500).json({ error: 'Erreur serveur' });
+        }
+        if (result.length === 0) {
+            return res.status(403).json({ error: 'Accès non autorisé' });
+        }
+
+        // Get panier items
+        const panierSql = 'SELECT * FROM panier_groupe WHERE groupe_id = ?';
+        db.query(panierSql, [groupe_id], function (err, panier) {
+            if (err) {
+                console.error(err);
+                return res.status(500).json({ error: 'Erreur serveur' });
+            }
+            
+            // Calculate total
+            let total = 0;
+            panier.forEach(item => {
+                total += item.prix * item.quantite;
+            });
+
+            res.json({
+                panier: panier || [],
+                total: total.toFixed(2)
+            });
+        });
+    });
+});
+
+// Add item to group panier
+app.post('/add-to-panier', requireLogin, function (req, res) {
+    const groupe_id = req.body.groupe_id;
+    const objet = req.body.objet;
+    const prix = req.body.prix;
+    const quantite = req.body.quantite || 1;
+    const email = req.session.user.email;
+
+    // Check if user is member of group
+    const checkMemberSql = `
+        SELECT * FROM groupes g
+        LEFT JOIN members_groups mg ON g.groupe_id = mg.groupe_id
+        WHERE g.groupe_id = ? AND (g.createur_email = ? OR mg.email = ?)
+    `;
+    db.query(checkMemberSql, [groupe_id, email, email], function (err, result) {
+        if (err) {
+            console.error(err);
+            return res.status(500).send('Erreur serveur');
+        }
+        if (result.length === 0) {
+            return res.status(403).send('Accès non autorisé');
+        }
+
+        // Add item to panier
+        const addPanierSql = 'INSERT INTO panier_groupe (groupe_id, objet, prix, quantite) VALUES (?, ?, ?, ?)';
+        db.query(addPanierSql, [groupe_id, objet, prix, quantite], function (err) {
+            if (err) {
+                console.error(err);
+                return res.status(500).send('Erreur serveur');
+            }
+            res.json({ success: true });
+        });
+    });
+});
+
+// Update item quantity in panier
+app.post('/update-panier-item', requireLogin, function (req, res) {
+    const panier_id = req.body.panier_id;
+    const quantite = req.body.quantite;
+    const groupe_id = req.body.groupe_id;
+    const email = req.session.user.email;
+
+    // Check if user is member of group
+    const checkMemberSql = `
+        SELECT * FROM groupes g
+        LEFT JOIN members_groups mg ON g.groupe_id = mg.groupe_id
+        WHERE g.groupe_id = ? AND (g.createur_email = ? OR mg.email = ?)
+    `;
+    db.query(checkMemberSql, [groupe_id, email, email], function (err, result) {
+        if (err) {
+            console.error(err);
+            return res.status(500).send('Erreur serveur');
+        }
+        if (result.length === 0) {
+            return res.status(403).send('Accès non autorisé');
+        }
+
+        if (quantite <= 0) {
+            // Delete item
+            const deleteSql = 'DELETE FROM panier_groupe WHERE panier_id = ?';
+            db.query(deleteSql, [panier_id], function (err) {
+                if (err) {
+                    console.error(err);
+                    return res.status(500).send('Erreur serveur');
+                }
+                res.json({ success: true });
+            });
+        } else {
+            // Update quantity
+            const updateSql = 'UPDATE panier_groupe SET quantite = ? WHERE panier_id = ?';
+            db.query(updateSql, [quantite, panier_id], function (err) {
+                if (err) {
+                    console.error(err);
+                    return res.status(500).send('Erreur serveur');
+                }
+                res.json({ success: true });
+            });
+        }
+    });
+});
+
+// Remove item from panier
+app.post('/remove-from-panier', requireLogin, function (req, res) {
+    const panier_id = req.body.panier_id;
+    const groupe_id = req.body.groupe_id;
+    const email = req.session.user.email;
+
+    // Check if user is member of group
+    const checkMemberSql = `
+        SELECT * FROM groupes g
+        LEFT JOIN members_groups mg ON g.groupe_id = mg.groupe_id
+        WHERE g.groupe_id = ? AND (g.createur_email = ? OR mg.email = ?)
+    `;
+    db.query(checkMemberSql, [groupe_id, email, email], function (err, result) {
+        if (err) {
+            console.error(err);
+            return res.status(500).send('Erreur serveur');
+        }
+        if (result.length === 0) {
+            return res.status(403).send('Accès non autorisé');
+        }
+
+        // Remove item
+        const deleteSql = 'DELETE FROM panier_groupe WHERE panier_id = ?';
+        db.query(deleteSql, [panier_id], function (err) {
+            if (err) {
+                console.error(err);
+                return res.status(500).send('Erreur serveur');
+            }
+            res.json({ success: true });
+        });
     });
 });
 

@@ -74,9 +74,21 @@
         .logout-btn:hover {
             background-color: #da190b;
         }
+        .user-info {
+            position: fixed;
+            top: 15px;
+            right: 20px;
+            background: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 4px;
+            font-weight: bold;
+            z-index: 1000;
+        }
     </style>
 </head>
 <body>
+    <div class="user-info" id="userInfo">👤 Chargement...</div>
     <nav>
         <ul class="nav-links">
             <li><a href="accueil.html">Accueil</a></li>
@@ -119,6 +131,7 @@
         </form>
 
         <div style="text-align: center;">
+            <a href="/download-pdf" class="logout-btn" style="background-color: #2196F3; margin-right: 10px;">Télécharger le PDF</a>
             <a href="/logout" class="logout-btn">Se déconnecter</a>
         </div>
     </div>
@@ -135,6 +148,9 @@
                     return response.json();
                 })
                 .then(data => {
+                    // Afficher l'email de l'utilisateur en haut à droite
+                    document.getElementById('userInfo').textContent = `👤 ${data.email}`;
+                    
                     document.getElementById('nom').value = data.nom || '';
                     document.getElementById('prenom').value = data.prenom || '';
                     document.getElementById('email').value = data.email || '';

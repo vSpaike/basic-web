@@ -5,12 +5,27 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Accueil</title>
     <link rel="stylesheet" href="styles.css">
+    <style>
+        .user-info {
+            position: fixed;
+            top: 15px;
+            right: 20px;
+            background: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 4px;
+            font-weight: bold;
+            z-index: 1000;
+        }
+    </style>
 </head>
     <body class="page-accueil">
+        <div class="user-info" id="userInfo">👤 Chargement...</div>
         <nav class="accueil-nav">
             <ul class="accueil-actions">
                 <li><a href="/profil">Profil</a></li>
                 <li><a href="prix.html">Prix</a></li>
+                <li><a href="groupe">Groupes</a></li>
             </ul>
         </nav>
 
@@ -24,5 +39,15 @@
             <img src="img/dog-3.svg" alt="Chien joueur">
             <img src="img/dog-4.svg" alt="Chien curieux">
         </section>
+
+        <script>
+            // Charger l'email de l'utilisateur
+            fetch('/get-profile')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('userInfo').textContent = `👤 ${data.email}`;
+                })
+                .catch(error => console.error('Erreur:', error));
+        </script>
     </body>
 </html>
